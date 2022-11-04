@@ -726,6 +726,9 @@
     </COMReference>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Bcl.AsyncInterfaces">
+      <Version>$(MicrosoftBclAsyncInterfacesVersion)</Version>
+    </PackageReference>
     <PackageReference Condition="$(BuildForRelease) == 'true'" Include="Microsoft.SourceLink.GitHub" Version="$(MicrosoftSourceLinkGitHubVersion)" PrivateAssets="All" />
     <PackageReference Include="System.Text.Encodings.Web">
       <Version>$(SystemTextEncodingsWebVersion)</Version>
@@ -758,6 +761,9 @@
     </PackageReference>
     <PackageReference Include="System.IO">
       <Version>$(SystemIOVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Threading.Tasks.Extensions">
+      <Version>$(SystemThreadingTasksExtensionsVersion)</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
