@@ -1349,13 +1349,9 @@ namespace Microsoft.Data.SqlClient
                 else
                 {
                     SqlBatchCommand batchCommand = null;
-                    if (temp[0] != null && command != null)
+                    if (temp[0]?.BatchIndex is var index and >= 0 && command is not null)
                     {
-                        int index = temp[0].BatchIndex;
-                        if (temp[0].BatchIndex >= 0)
-                        {
-                            batchCommand = command.GetBatchCommand(index);
-                        }
+                        batchCommand = command.GetBatchCommand(index.Value);
                     }
                     exception = SqlException.CreateException(temp, serverVersion, _connHandler, innerException: null, batchCommand: batchCommand);
                 }
