@@ -271,6 +271,15 @@
     <Compile Include="..\..\src\Microsoft\Data\SqlClient\SqlAuthenticationToken.cs">
       <Link>Microsoft\Data\SqlClient\SqlAuthenticationToken.cs</Link>
     </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\SqlClient\SqlBatch.cs">
+      <Link>Microsoft\Data\SqlClient\SqlBatch.cs</Link>
+    </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\SqlClient\SqlBatchCommand.cs">
+      <Link>Microsoft\Data\SqlClient\SqlBatchCommand.cs</Link>
+    </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\SqlClient\SqlBatchCommandCollection.cs">
+      <Link>Microsoft\Data\SqlClient\SqlBatchCommandCollection.cs</Link>
+    </Compile>
     <Compile Include="..\..\src\Microsoft\Data\SqlClient\SqlBulkCopyColumnMapping.cs">
       <Link>Microsoft\Data\SqlClient\SqlBulkCopyColumnMapping.cs</Link>
     </Compile>
@@ -515,6 +524,18 @@
     </Compile>
   </ItemGroup>
   <ItemGroup Condition="'$(OSGroup)' != 'AnyOS' AND '$(TargetGroup)' == 'netstandard'">
+    <Compile Include="..\..\src\Microsoft\Data\Common\DbBatch.cs">
+      <Link>Microsoft\Data\Common\DbBatch.cs</Link>
+    </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\Common\DbBatch.IAsyncDispose.cs">
+      <Link>Microsoft\Data\Common\DbBatch.IAsyncDispose.cs</Link>
+    </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\Common\DbBatchCommand.cs">
+      <Link>Microsoft\Data\Common\DbBatchCommand.cs</Link>
+    </Compile>
+    <Compile Include="..\..\src\Microsoft\Data\Common\DbBatchCommandCollection.cs">
+      <Link>Microsoft\Data\Common\DbBatchCommandCollection.cs</Link>
+    </Compile>
     <Compile Include="Microsoft\Data\SqlClient\SNI\SNIStreams.Task.cs" />    
     <Compile Include="Microsoft\Data\SqlClient\SNI\SslOverTdsStream.NetStandard.cs" />
     <Compile Include="Microsoft\Data\SqlClient\SqlAuthenticationProviderManager.NetStandard.cs" />
