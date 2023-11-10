@@ -9436,19 +9436,61 @@ namespace Microsoft.Data.SqlClient
             SNISSPIData(receivedBuff, receivedLength, sendBuff, ref sendLength);
         }
 
-        private void SNISSPIData(byte[] receivedBuff, UInt32 receivedLength, byte[] sendBuff, ref UInt32 sendLength)
+        // dmirodik - ntlm fix
+        private void SNISSPIData(byte[] receivedBuff, uint receivedLength, ref byte[] sendBuff, ref uint sendLength)
         {
-            if (receivedBuff == null)
+            if (_connHandler.ConnectionOptions.IntegratedSecurity
+                && !string.IsNullOrEmpty(_connHandler.ConnectionOptions.UserID) && !string.IsNullOrEmpty(_connHandler.ConnectionOptions.Password))
             {
-                // we do not have SSPI data coming from server, so send over 0's for pointer and length
-                receivedLength = 0;
+                if (receivedBuff == null) // first message
+                {
+                    var type1Message = new SharpCifs.Ntlmssp.Type1Message(); //[review] FLAGS
+                    type1Message.SetSuppliedWorkstation(_connHandler.ConnectionOptions.ObtainWorkstationId());
+                    sendBuff = type1Message.ToByteArray();
+                    sendLength = (uint)sendBuff.Length;
+                }
+                else // challenged
+                {
+                    var type2MessageBytes = new byte[receivedLength];
+                    Array.Copy(receivedBuff, type2MessageBytes, receivedLength);
+                    var type2Message = new SharpCifs.Ntlmssp.Type2Message(receivedBuff);
+                    var userId = _connHandler.ConnectionOptions.UserID;
+                    var domain = userId.Split('\\')[0];
+                    var user = userId.Split('\\')[1];
+                    var type3Message = new SharpCifs.Ntlmssp.Type3Message(type2Message, _connHandler.ConnectionOptions.Password, domain, user, _connHandler.ConnectionOptions.ObtainWorkstationId(), type2Message.GetFlags());
+                    sendBuff = type3Message.ToByteArray();
+                    sendLength = (uint)sendBuff.Length;
+                }
             }
-            // we need to respond to the server's message with SSPI data
-            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(_physicalStateObj.Handle, receivedBuff, receivedLength, sendBuff, ref sendLength, _sniSpnBuffer))
+            else // the following block is the original.
             {
-                SSPIError(SQLMessage.SSPIGenerateError(), TdsEnums.GEN_CLIENT_CONTEXT);
+                if (receivedBuff == null)
+                {
+                    // we do not have SSPI data coming from server, so send over 0's for pointer and length
+                    receivedLength = 0;
+                }
+                // we need to respond to the server's message with SSPI data
+                if (0 != SNINativeMethodWrapper.SNISecGenClientContext(_physicalStateObj.Handle, receivedBuff, receivedLength, sendBuff, ref sendLength, _sniSpnBuffer))
+                {
+                    SSPIError(SQLMessage.SSPIGenerateError(), TdsEnums.GEN_CLIENT_CONTEXT);
+                }
             }
         }
+
+        // dmirodik - original code
+        //private void SNISSPIData(byte[] receivedBuff, UInt32 receivedLength, byte[] sendBuff, ref UInt32 sendLength)
+        //{
+        //    if (receivedBuff == null)
+        //    {
+        //        // we do not have SSPI data coming from server, so send over 0's for pointer and length
+        //        receivedLength = 0;
+        //    }
+        //    // we need to respond to the server's message with SSPI data
+        //    if (0 != SNINativeMethodWrapper.SNISecGenClientContext(_physicalStateObj.Handle, receivedBuff, receivedLength, sendBuff, ref sendLength, _sniSpnBuffer))
+        //    {
+        //        SSPIError(SQLMessage.SSPIGenerateError(), TdsEnums.GEN_CLIENT_CONTEXT);
+        //    }
+        //}
 
 
         private void ProcessSSPI(int receivedLength)
