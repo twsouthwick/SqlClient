@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using Microsoft.Data.Common;
 
@@ -11,8 +12,6 @@ namespace Microsoft.Data.SqlClient
         private TdsParser _parser = null!;
         private ServerInfo _serverInfo = null!;
         private protected TdsParserStateObject _physicalStateObj = null!;
-
-        internal virtual uint MaxSSPILength => 4096; // TODO: what is a good default here?
 
         internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser)
         {
@@ -27,20 +26,21 @@ namespace Microsoft.Data.SqlClient
         {
         }
 
-        internal abstract void GenerateSspiClientContext(ReadOnlyMemory<byte> input, ref byte[] sendBuff, ref uint sendLength, byte[][] _sniSpnBuffer);
+        internal abstract IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> input, byte[][] _sniSpnBuffer);
 
-        internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, ref byte[] sendBuff, ref UInt32 sendLength, byte[] sniSpnBuffer)
-            => SSPIData(receivedBuff, ref sendBuff, ref sendLength, new[] { sniSpnBuffer });
+        internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff, byte[] sniSpnBuffer)
+            => SSPIData(receivedBuff, new[] { sniSpnBuffer });
 
-        internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, ref byte[] sendBuff, ref UInt32 sendLength, byte[][] sniSpnBuffer)
+        internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff, byte[][] sniSpnBuffer)
         {
             try
             {
-                GenerateSspiClientContext(receivedBuff, ref sendBuff, ref sendLength, sniSpnBuffer);
+                return GenerateSspiClientContext(receivedBuff, sniSpnBuffer);
             }
             catch (Exception e)
             {
                 SSPIError(e.Message + Environment.NewLine + e.StackTrace, TdsEnums.GEN_CLIENT_CONTEXT);
+                throw; // SSPIError should throw, but just in case
             }
         }
 
