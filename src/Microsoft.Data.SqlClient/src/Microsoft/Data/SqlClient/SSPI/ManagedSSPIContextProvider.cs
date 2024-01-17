@@ -12,13 +12,13 @@ namespace Microsoft.Data.SqlClient
     {
         private SspiClientContextStatus? _sspiClientContextStatus;
 
-        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received, byte[][] _sniSpnBuffer)
+        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received)
         {
             _sspiClientContextStatus ??= new SspiClientContextStatus();
 
             try
             {
-                return SNIProxy.GenSspiClientContext(_sspiClientContextStatus, received, _sniSpnBuffer);
+                return SNIProxy.GenSspiClientContext(_sspiClientContextStatus, received, ServerNames);
             }
             finally
             {

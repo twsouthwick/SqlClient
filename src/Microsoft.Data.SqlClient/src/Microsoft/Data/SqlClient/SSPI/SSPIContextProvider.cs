@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Microsoft.Data.Common;
 
@@ -12,12 +13,16 @@ namespace Microsoft.Data.SqlClient
         private TdsParser _parser = null!;
         private ServerInfo _serverInfo = null!;
         private protected TdsParserStateObject _physicalStateObj = null!;
+        private string[] _serverNames = Array.Empty<string>();
 
-        internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser)
+        internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser, string[] serverNames)
         {
             _parser = parser;
             _physicalStateObj = physicalStateObj;
             _serverInfo = serverInfo;
+            _serverNames = serverNames;
+
+            Debug.Assert(_serverNames.Length > 0);
 
             Initialize();
         }
@@ -26,16 +31,15 @@ namespace Microsoft.Data.SqlClient
         {
         }
 
-        internal abstract IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> input, byte[][] _sniSpnBuffer);
+        public IReadOnlyList<string> ServerNames => _serverNames;
 
-        internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff, byte[] sniSpnBuffer)
-            => SSPIData(receivedBuff, new[] { sniSpnBuffer });
+        internal abstract IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> input);
 
-        internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff, byte[][] sniSpnBuffer)
+        internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff)
         {
             try
             {
-                return GenerateSspiClientContext(receivedBuff, sniSpnBuffer);
+                return GenerateSspiClientContext(receivedBuff);
             }
             catch (Exception e)
             {

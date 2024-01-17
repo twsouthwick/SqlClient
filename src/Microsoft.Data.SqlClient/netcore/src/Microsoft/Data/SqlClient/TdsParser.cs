@@ -134,7 +134,7 @@ namespace Microsoft.Data.SqlClient
 
         private bool _is2022 = false;
 
-        private byte[][] _sniSpnBuffer = null;
+        private string[] _sniSpn = null;
 
         // SqlStatistics
         private SqlStatistics _statistics = null;
@@ -407,7 +407,7 @@ namespace Microsoft.Data.SqlClient
             }
             else
             {
-                _sniSpnBuffer = null;
+                _sniSpn = null;
                 SqlClientEventSource.Log.TryTraceEvent("TdsParser.Connect | SEC | Connection Object Id {0}, Authentication Mode: {1}", _connHandler._objectID,
                     authType == SqlAuthenticationMethod.NotSpecified ? SqlAuthenticationMethod.SqlPassword.ToString() : authType.ToString());
             }
@@ -419,14 +419,13 @@ namespace Microsoft.Data.SqlClient
                 SqlClientEventSource.Log.TryTraceEvent("<sc.TdsParser.Connect|SEC> Encryption will be disabled as target server is a SQL Local DB instance.");
             }
 
-            _sniSpnBuffer = null;
+            _sniSpn = null;
             _authenticationProvider = null;
 
             // AD Integrated behaves like Windows integrated when connecting to a non-fedAuth server
             if (integratedSecurity || authType == SqlAuthenticationMethod.ActiveDirectoryIntegrated)
             {
                 _authenticationProvider = _physicalStateObj.CreateSSPIContextProvider();
-                _authenticationProvider.Initialize(serverInfo, _physicalStateObj, this);
                 SqlClientEventSource.Log.TryTraceEvent("TdsParser.Connect | SEC | SSPI or Active Directory Authentication Library loaded for SQL Server based integrated authentication");
             }
 
@@ -459,7 +458,7 @@ namespace Microsoft.Data.SqlClient
                 serverInfo.ExtendedServerName,
                 timeout,
                 out instanceName,
-                ref _sniSpnBuffer,
+                ref _sniSpn,
                 false,
                 true,
                 fParallel,
@@ -471,6 +470,8 @@ namespace Microsoft.Data.SqlClient
                 isTlsFirst,
                 hostNameInCertificate,
                 serverCertificateFilename);
+
+            _authenticationProvider?.Initialize(serverInfo, _physicalStateObj, this, _sniSpn);
 
             if (TdsEnums.SNI_SUCCESS != _physicalStateObj.Status)
             {
@@ -556,7 +557,7 @@ namespace Microsoft.Data.SqlClient
                 _physicalStateObj.CreatePhysicalSNIHandle(
                     serverInfo.ExtendedServerName,
                     timeout, out instanceName,
-                    ref _sniSpnBuffer,
+                    ref _sniSpn,
                     true,
                     true,
                     fParallel,
@@ -575,6 +576,8 @@ namespace Microsoft.Data.SqlClient
                     SqlClientEventSource.Log.TryTraceEvent("<sc.TdsParser.Connect|ERR|SEC> Login failure");
                     ThrowExceptionAndWarning(_physicalStateObj);
                 }
+
+                _authenticationProvider?.Initialize(serverInfo, _physicalStateObj, this, _sniSpn);
 
                 uint retCode = _physicalStateObj.SniGetConnectionId(ref _connHandler._clientConnectionId);
 
@@ -12850,7 +12853,7 @@ namespace Microsoft.Data.SqlClient
                            _fMARS ? bool.TrueString : bool.FalseString,
                            null == _sessionPool ? "(null)" : _sessionPool.TraceString(),
                            _is2005 ? bool.TrueString : bool.FalseString,
-                           null == _sniSpnBuffer ? "(null)" : _sniSpnBuffer.Length.ToString((IFormatProvider)null),
+                           null == _sniSpn ? "(null)" : _sniSpn.Length.ToString((IFormatProvider)null),
                            _physicalStateObj != null ? "(null)" : _physicalStateObj.ErrorCount.ToString((IFormatProvider)null),
                            _physicalStateObj != null ? "(null)" : _physicalStateObj.WarningCount.ToString((IFormatProvider)null),
                            _physicalStateObj != null ? "(null)" : _physicalStateObj.PreAttentionErrorCount.ToString((IFormatProvider)null),
