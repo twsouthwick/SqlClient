@@ -4,6 +4,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
@@ -32,9 +33,9 @@ namespace Microsoft.Data.SqlClient.SNI
         /// </summary>
         /// <param name="sspiClientContextStatus">SSPI client context status</param>
         /// <param name="receivedBuff">Receive buffer</param>
-        /// <param name="serverName">Service Principal Name buffer</param>
+        /// <param name="serverNames">Service Principal Name buffer</param>
         /// <returns>Memory for response</returns>
-        internal static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, ReadOnlyMemory<byte> receivedBuff, byte[][] serverName)
+        internal static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, ReadOnlyMemory<byte> receivedBuff, IReadOnlyList<string> serverNames)
         {
             // TODO: this should use ReadOnlyMemory all the way through
             var array = ArrayPool<byte>.Shared.Rent(receivedBuff.Length);
@@ -42,7 +43,7 @@ namespace Microsoft.Data.SqlClient.SNI
             try
             {
                 receivedBuff.CopyTo(array);
-                return GenSspiClientContext(sspiClientContextStatus, array, receivedBuff.Length, serverName);
+                return GenSspiClientContext(sspiClientContextStatus, array, receivedBuff.Length, serverNames);
             }
             finally
             {
@@ -50,7 +51,7 @@ namespace Microsoft.Data.SqlClient.SNI
             }
         }
 
-        private static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, byte[] receivedBuff, int receivedBuffLength,  byte[][] serverName)
+        private static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, byte[] receivedBuff, int receivedBuffLength, IReadOnlyList<string> serverSPNs)
         {
             SafeDeleteContext securityContext = sspiClientContextStatus.SecurityContext;
             ContextFlagsPal contextFlags = sspiClientContextStatus.ContextFlags;
@@ -66,7 +67,7 @@ namespace Microsoft.Data.SqlClient.SNI
             SecurityBuffer[] inSecurityBufferArray;
             if (receivedBuff != null)
             {
-                inSecurityBufferArray = new SecurityBuffer[] { new SecurityBuffer(receivedBuff, SecurityBufferType.SECBUFFER_TOKEN) };
+                inSecurityBufferArray = new SecurityBuffer[] { new SecurityBuffer(receivedBuff, 0, receivedBuffLength, SecurityBufferType.SECBUFFER_TOKEN) };
             }
             else
             {
@@ -82,11 +83,6 @@ namespace Microsoft.Data.SqlClient.SNI
                 | ContextFlagsPal.Delegate
                 | ContextFlagsPal.MutualAuth;
 
-            string[] serverSPNs = new string[serverName.Length];
-            for (int i = 0; i < serverName.Length; i++)
-            {
-                serverSPNs[i] = Encoding.Unicode.GetString(serverName[i]);
-            }
             SecurityStatusPal statusCode = NegotiateStreamPal.InitializeSecurityContext(
                        credentialsHandle,
                        ref securityContext,
@@ -162,7 +158,7 @@ namespace Microsoft.Data.SqlClient.SNI
             string fullServerName,
             TimeoutTimer timeout,
             out byte[] instanceName,
-            ref byte[][] spnBuffer,
+            ref string[] spnBuffer,
             string serverSPN,
             bool flushCache,
             bool async,
@@ -226,12 +222,12 @@ namespace Microsoft.Data.SqlClient.SNI
             return sniHandle;
         }
 
-        private static byte[][] GetSqlServerSPNs(DataSource dataSource, string serverSPN)
+        private static string[] GetSqlServerSPNs(DataSource dataSource, string serverSPN)
         {
             Debug.Assert(!string.IsNullOrWhiteSpace(dataSource.ServerName));
             if (!string.IsNullOrWhiteSpace(serverSPN))
             {
-                return new byte[1][] { Encoding.Unicode.GetBytes(serverSPN) };
+                return new[] { serverSPN };
             }
 
             string hostName = dataSource.ServerName;
@@ -249,7 +245,7 @@ namespace Microsoft.Data.SqlClient.SNI
             return GetSqlServerSPNs(hostName, postfix, dataSource._connectionProtocol);
         }
 
-        private static byte[][] GetSqlServerSPNs(string hostNameOrAddress, string portOrInstanceName, DataSource.Protocol protocol)
+        private static string[] GetSqlServerSPNs(string hostNameOrAddress, string portOrInstanceName, DataSource.Protocol protocol)
         {
             Debug.Assert(!string.IsNullOrWhiteSpace(hostNameOrAddress));
             IPHostEntry hostEntry = null;
@@ -280,12 +276,12 @@ namespace Microsoft.Data.SqlClient.SNI
                 string serverSpnWithDefaultPort = serverSpn + $":{DefaultSqlServerPort}";
                 // Set both SPNs with and without Port as Port is optional for default instance
                 SqlClientEventSource.Log.TryAdvancedTraceEvent("SNIProxy.GetSqlServerSPN | Info | ServerSPNs {0} and {1}", serverSpn, serverSpnWithDefaultPort);
-                return new byte[][] { Encoding.Unicode.GetBytes(serverSpn), Encoding.Unicode.GetBytes(serverSpnWithDefaultPort) };
+                return new[] { serverSpn, serverSpnWithDefaultPort };
             }
             // else Named Pipes do not need to valid port
 
             SqlClientEventSource.Log.TryAdvancedTraceEvent("SNIProxy.GetSqlServerSPN | Info | ServerSPN {0}", serverSpn);
-            return new byte[][] { Encoding.Unicode.GetBytes(serverSpn) };
+            return new[] { serverSpn };
         }
 
         /// <summary>

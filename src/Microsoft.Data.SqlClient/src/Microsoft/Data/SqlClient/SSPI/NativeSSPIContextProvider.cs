@@ -49,7 +49,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff, byte[][] _sniSpnBuffer)
+        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff)
         {
 #if NETFRAMEWORK
             SNIHandle handle = _physicalStateObj.Handle;
@@ -60,7 +60,7 @@ namespace Microsoft.Data.SqlClient
             var length = s_maxSSPILength;
             var buffer = new ArrayPoolOwner((int)length);
 
-            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, receivedBuff.Span, buffer.Memory.Span, ref length, _sniSpnBuffer[0]))
+            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, receivedBuff.Span, buffer.Memory.Span, ref length, ServerNames[0]))
             {
                 buffer.Dispose();
                 throw new InvalidOperationException(SQLMessage.SSPIGenerateError());

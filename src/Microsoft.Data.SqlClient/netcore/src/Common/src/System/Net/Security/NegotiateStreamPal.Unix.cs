@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Win32.SafeHandles;
@@ -146,7 +147,7 @@ namespace System.Net.Security
         internal static SecurityStatusPal InitializeSecurityContext(
             SafeFreeCredentials credentialsHandle,
             ref SafeDeleteContext securityContext,
-            string[] spns,
+            IReadOnlyList<string> spns,
             ContextFlagsPal requestedContextFlags,
             SecurityBuffer[] inSecurityBufferArray,
             SecurityBuffer outSecurityBuffer,

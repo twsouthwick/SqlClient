@@ -5,6 +5,7 @@
 using System.Globalization;
 using System.ComponentModel;
 using Microsoft.Data;
+using System.Collections.Generic;
 
 namespace System.Net.Security
 {
@@ -71,7 +72,7 @@ namespace System.Net.Security
         internal static SecurityStatusPal InitializeSecurityContext(
             SafeFreeCredentials credentialsHandle,
             ref SafeDeleteContext securityContext,
-            string[] spn,
+            IReadOnlyList<string> spn,
             ContextFlagsPal requestedContextFlags,
             SecurityBuffer[] inSecurityBufferArray,
             SecurityBuffer outSecurityBuffer,
