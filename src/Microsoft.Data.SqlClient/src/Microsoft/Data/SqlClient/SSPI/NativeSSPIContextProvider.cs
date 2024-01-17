@@ -49,7 +49,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff)
+        protected override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff)
         {
 #if NETFRAMEWORK
             SNIHandle handle = _physicalStateObj.Handle;
