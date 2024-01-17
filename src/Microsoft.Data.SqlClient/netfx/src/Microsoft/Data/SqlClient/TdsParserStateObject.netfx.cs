@@ -80,6 +80,8 @@ namespace Microsoft.Data.SqlClient
             _lastSuccessfulIOTimer = parser._physicalStateObj._lastSuccessfulIOTimer;
         }
 
+        internal SSPIContextProvider CreateSSPIContextProvider() => new NativeSSPIContextProvider();
+
         ////////////////
         // Properties //
         ////////////////
@@ -90,7 +92,7 @@ namespace Microsoft.Data.SqlClient
                 return _sessionHandle;
             }
         }
-        
+
         internal uint Status
         {
             get
