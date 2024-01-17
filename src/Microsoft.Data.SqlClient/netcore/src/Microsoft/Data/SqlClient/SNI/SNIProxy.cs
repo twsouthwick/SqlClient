@@ -32,10 +32,9 @@ namespace Microsoft.Data.SqlClient.SNI
         /// </summary>
         /// <param name="sspiClientContextStatus">SSPI client context status</param>
         /// <param name="receivedBuff">Receive buffer</param>
-        /// <param name="sendBuff">Send buffer</param>
         /// <param name="serverName">Service Principal Name buffer</param>
-        /// <returns>SNI error code</returns>
-        internal static void GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, ReadOnlyMemory<byte> receivedBuff, ref byte[] sendBuff, byte[][] serverName)
+        /// <returns>Memory for response</returns>
+        internal static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, ReadOnlyMemory<byte> receivedBuff, byte[][] serverName)
         {
             // TODO: this should use ReadOnlyMemory all the way through
             var array = ArrayPool<byte>.Shared.Rent(receivedBuff.Length);
@@ -43,7 +42,7 @@ namespace Microsoft.Data.SqlClient.SNI
             try
             {
                 receivedBuff.CopyTo(array);
-                GenSspiClientContext(sspiClientContextStatus, array, receivedBuff.Length, ref sendBuff, serverName);
+                return GenSspiClientContext(sspiClientContextStatus, array, receivedBuff.Length, serverName);
             }
             finally
             {
@@ -51,7 +50,7 @@ namespace Microsoft.Data.SqlClient.SNI
             }
         }
 
-        private static void GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, byte[] receivedBuff, int receivedBuffLength, ref byte[] sendBuff, byte[][] serverName)
+        private static IMemoryOwner<byte> GenSspiClientContext(SspiClientContextStatus sspiClientContextStatus, byte[] receivedBuff, int receivedBuffLength,  byte[][] serverName)
         {
             SafeDeleteContext securityContext = sspiClientContextStatus.SecurityContext;
             ContextFlagsPal contextFlags = sspiClientContextStatus.ContextFlags;
@@ -105,12 +104,6 @@ namespace Microsoft.Data.SqlClient.SNI
                 outSecurityBuffer.token = null;
             }
 
-            sendBuff = outSecurityBuffer.token;
-            if (sendBuff == null)
-            {
-                sendBuff = Array.Empty<byte>();
-            }
-
             sspiClientContextStatus.SecurityContext = securityContext;
             sspiClientContextStatus.ContextFlags = contextFlags;
             sspiClientContextStatus.CredentialsHandle = credentialsHandle;
@@ -130,6 +123,8 @@ namespace Microsoft.Data.SqlClient.SNI
                     throw new InvalidOperationException(SQLMessage.SSPIGenerateError() + Environment.NewLine + statusCode);
                 }
             }
+
+            return outSecurityBuffer.token.AsMemoryOwner();
         }
 
         private static bool IsErrorStatus(SecurityStatusPalErrorCode errorCode)

@@ -6,6 +6,27 @@ using System.Diagnostics;
 
 namespace Microsoft.Data.SqlClient
 {
+    internal static class MemoryArrayExtensions
+    {
+        public static IMemoryOwner<byte> AsMemoryOwner(this byte[] bytes) => new ArrayMemoryOwner(bytes);
+
+        private sealed class ArrayMemoryOwner : IMemoryOwner<byte>
+        {
+            private readonly byte[] _array;
+
+            public ArrayMemoryOwner(byte[] array)
+            {
+                _array = array;
+            }
+
+            public Memory<byte> Memory => _array;
+
+            public void Dispose()
+            {
+            }
+        }
+    }
+
     internal partial class TdsParser
     {
         internal void ProcessSSPI(int receivedLength)
@@ -25,18 +46,12 @@ namespace Microsoft.Data.SqlClient
                 throw SQL.SynchronousCallMayNotPend();
             }
 
-            // allocate send buffer and initialize length
-            byte[] rentedSendBuff = ArrayPool<byte>.Shared.Rent((int)_authenticationProvider!.MaxSSPILength);
-            byte[] sendBuff = rentedSendBuff; // need to track these separately in case someone updates the ref parameter
-            uint sendLength = _authenticationProvider.MaxSSPILength;
-
             // make call for SSPI data
-            _authenticationProvider.SSPIData(receivedBuff.AsMemory(0, receivedLength), ref sendBuff, ref sendLength, _sniSpnBuffer);
+            using var sendBuff = _authenticationProvider!.SSPIData(receivedBuff.AsMemory(0, receivedLength), _sniSpnBuffer);
 
             // DO NOT SEND LENGTH - TDS DOC INCORRECT!  JUST SEND SSPI DATA!
-            _physicalStateObj.WriteByteArray(sendBuff, (int)sendLength, 0);
+            _physicalStateObj.WriteByteSpan(sendBuff.Memory.Span);
 
-            ArrayPool<byte>.Shared.Return(rentedSendBuff, clearArray: true);
             ArrayPool<byte>.Shared.Return(receivedBuff, clearArray: true);
 
             // set message type so server knows its a SSPI response
@@ -167,9 +182,7 @@ namespace Microsoft.Data.SqlClient
             }
 
             // allocate memory for SSPI variables
-            byte[] rentedSSPIBuff = null;
-            byte[] outSSPIBuff = null; // track the rented buffer as a separate variable in case it is updated via the ref parameter
-            uint outSSPILength = 0;
+            IMemoryOwner<byte> outSSPIBuff = null;
 
             // only add lengths of password and username if not using SSPI or requesting federated authentication info
             if (!rec.useSSPI && !(_connHandler._federatedAuthenticationInfoRequested || _connHandler._federatedAuthenticationRequested))
@@ -184,19 +197,14 @@ namespace Microsoft.Data.SqlClient
             {
                 if (rec.useSSPI)
                 {
-                    // now allocate proper length of buffer, and set length
-                    outSSPILength = _authenticationProvider.MaxSSPILength;
-                    rentedSSPIBuff = ArrayPool<byte>.Shared.Rent((int)outSSPILength);
-                    outSSPIBuff = rentedSSPIBuff;
-
                     // Call helper function for SSPI data and actual length.
                     // Since we don't have SSPI data from the server, send null for the
                     // byte[] buffer and 0 for the int length.
                     Debug.Assert(SniContext.Snix_Login == _physicalStateObj.SniContext, $"Unexpected SniContext. Expecting Snix_Login, actual value is '{_physicalStateObj.SniContext}'");
                     _physicalStateObj.SniContext = SniContext.Snix_LoginSspi;
-                    _authenticationProvider.SSPIData(Array.Empty<byte>(), ref outSSPIBuff, ref outSSPILength, _sniSpnBuffer);
+                    outSSPIBuff = _authenticationProvider.SSPIData(Array.Empty<byte>(), _sniSpnBuffer);
 
-                    if (outSSPILength > int.MaxValue)
+                    if (outSSPIBuff.Memory.Length > int.MaxValue)
                     {
                         throw SQL.InvalidSSPIPacketSize();  // SqlBu 332503
                     }
@@ -204,7 +212,7 @@ namespace Microsoft.Data.SqlClient
 
                     checked
                     {
-                        length += (int)outSSPILength;
+                        length += (int)outSSPIBuff.Memory.Length;
                     }
                 }
             }
@@ -227,13 +235,9 @@ namespace Microsoft.Data.SqlClient
                            length,
                            feOffset,
                            clientInterfaceName,
-                           outSSPIBuff,
-                           outSSPILength);
+                           outSSPIBuff.Memory.Span);
 
-            if (rentedSSPIBuff != null)
-            {
-                ArrayPool<byte>.Shared.Return(rentedSSPIBuff, clearArray: true);
-            }
+            outSSPIBuff?.Dispose();
 
             _physicalStateObj.WritePacket(TdsEnums.HARDFLUSH);
             _physicalStateObj.ResetSecurePasswordsInformation();     // Password information is needed only from Login process; done with writing login packet and should clear information

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 
 #nullable enable
@@ -14,8 +15,6 @@ namespace Microsoft.Data.SqlClient
 
         // variable to hold max SSPI data size, keep for token from server
         private volatile static uint s_maxSSPILength;
-
-        internal override uint MaxSSPILength => s_maxSSPILength;
 
         private protected override void Initialize()
         {
@@ -50,7 +49,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        internal override void GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff, ref byte[] sendBuff, ref uint sendLength, byte[][] _sniSpnBuffer)
+        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> receivedBuff, byte[][] _sniSpnBuffer)
         {
 #if NETFRAMEWORK
             SNIHandle handle = _physicalStateObj.Handle;
@@ -58,9 +57,49 @@ namespace Microsoft.Data.SqlClient
             Debug.Assert(_physicalStateObj.SessionHandle.Type == SessionHandle.NativeHandleType);
             SNIHandle handle = _physicalStateObj.SessionHandle.NativeHandle;
 #endif
-            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, receivedBuff.Span, sendBuff, ref sendLength, _sniSpnBuffer[0]))
+            var length = s_maxSSPILength;
+            var buffer = new ArrayPoolOwner((int)length);
+
+            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, receivedBuff.Span, buffer.Memory.Span, ref length, _sniSpnBuffer[0]))
             {
+                buffer.Dispose();
                 throw new InvalidOperationException(SQLMessage.SSPIGenerateError());
+            }
+
+            buffer.Length = (int)length;
+            return buffer;
+        }
+
+        private sealed class ArrayPoolOwner : IMemoryOwner<byte>
+        {
+            private readonly byte[] _array;
+            private int _length;
+
+            public int Length
+            {
+                get => _length;
+                set
+                {
+                    if (value < 0 || value > _array.Length)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(value));
+                    }
+
+                    _length = value;
+                }
+            }
+
+            public ArrayPoolOwner(int length)
+            {
+                _array = ArrayPool<byte>.Shared.Rent(length);
+                Length = length;
+            }
+
+            public Memory<byte> Memory => _array.AsMemory(_length);
+
+            public void Dispose()
+            {
+                ArrayPool<byte>.Shared.Return(_array);
             }
         }
     }
