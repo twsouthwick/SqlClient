@@ -8,10 +8,7 @@ using Microsoft.Data.Common;
 
 namespace Microsoft.Data.SqlClient
 {
-    /// <summary>
-    /// A provider to generate SSPI contexts
-    /// </summary>
-    public abstract class SSPIContextProvider
+    internal abstract class SSPIContextProvider
     {
         private TdsParser _parser = null!;
         private ServerInfo _serverInfo = null!;
@@ -34,17 +31,9 @@ namespace Microsoft.Data.SqlClient
         {
         }
 
-        /// <summary>
-        /// Gets a readonly list of server names we are connecting to.
-        /// </summary>
         public IReadOnlyList<string> ServerNames => _serverNames;
 
-        /// <summary>
-        /// Method to generate SSPI client context blobs.
-        /// </summary>
-        /// <param name="input">Received buffer, if any.</param>
-        /// <returns>A memory owned type with the response of the client.</returns>
-        protected abstract IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> input);
+        internal abstract IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> input);
 
         internal IMemoryOwner<byte> SSPIData(ReadOnlyMemory<byte> receivedBuff)
         {
@@ -59,7 +48,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        private protected void SSPIError(string error, string procedure)
+        protected void SSPIError(string error, string procedure)
         {
             Debug.Assert(!ADP.IsEmpty(procedure), "TdsParser.SSPIError called with an empty or null procedure string");
             Debug.Assert(!ADP.IsEmpty(error), "TdsParser.SSPIError called with an empty or null error string");

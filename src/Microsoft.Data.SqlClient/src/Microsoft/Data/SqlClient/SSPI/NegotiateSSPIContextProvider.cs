@@ -12,7 +12,7 @@ namespace Microsoft.Data.SqlClient
     {
         private NegotiateAuthentication? _negotiateAuth = null;
 
-        protected override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received)
+        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received)
         {
             _negotiateAuth ??= new(new NegotiateAuthenticationClientOptions { Package = "Negotiate", TargetName = ServerNames[0] });
             var sendBuff = _negotiateAuth.GetOutgoingBlob(received.Span, out NegotiateAuthenticationStatusCode statusCode)!;

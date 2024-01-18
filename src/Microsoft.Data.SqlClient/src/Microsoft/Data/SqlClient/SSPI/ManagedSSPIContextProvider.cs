@@ -12,7 +12,7 @@ namespace Microsoft.Data.SqlClient
     {
         private SspiClientContextStatus? _sspiClientContextStatus;
 
-        protected override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received)
+        internal override IMemoryOwner<byte> GenerateSspiClientContext(ReadOnlyMemory<byte> received)
         {
             _sspiClientContextStatus ??= new SspiClientContextStatus();
 
