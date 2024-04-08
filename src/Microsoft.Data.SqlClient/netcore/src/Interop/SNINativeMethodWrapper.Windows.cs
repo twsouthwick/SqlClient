@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Data.Common;
@@ -398,7 +399,7 @@ namespace Microsoft.Data.SqlClient
             ConsumerInfo consumerInfo,
             string constring,
             ref IntPtr pConn,
-            byte[] spnBuffer,
+            ref string spn,
             byte[] instanceName,
             bool fOverrideCache,
             bool fSync,
@@ -436,13 +437,25 @@ namespace Microsoft.Data.SqlClient
                 clientConsumerInfo.DNSCacheInfo.wszCachedTcpIPv6 = cachedDNSInfo?.AddrIPv6;
                 clientConsumerInfo.DNSCacheInfo.wszCachedTcpPort = cachedDNSInfo?.Port;
 
-                if (spnBuffer != null)
+                if (spn != null)
                 {
-                    fixed (byte* pin_spnBuffer = &spnBuffer[0])
+                    var array = ArrayPool<byte>.Shared.Rent(SniMaxComposedSpnLength);
+                    try
                     {
-                        clientConsumerInfo.szSPN = pin_spnBuffer;
-                        clientConsumerInfo.cchSPN = (uint)spnBuffer.Length;
-                        return SNIOpenSyncExWrapper(ref clientConsumerInfo, out pConn);
+                        fixed (byte* pin_spnBuffer = &array[0])
+                        {
+                            clientConsumerInfo.szSPN = pin_spnBuffer;
+                            clientConsumerInfo.cchSPN = (uint)SniMaxComposedSpnLength;
+                            var result = SNIOpenSyncExWrapper(ref clientConsumerInfo, out pConn);
+
+                            spn = Encoding.Unicode.GetString(array, 0, (int)clientConsumerInfo.cchSPN).TrimEnd();
+
+                            return result;
+                        }
+                    }
+                    finally
+                    {
+                        ArrayPool<byte>.Shared.Return(array);
                     }
                 }
                 else
@@ -471,26 +484,38 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        internal static unsafe uint SNISecGenClientContext(SNIHandle pConnectionObject, ReadOnlySpan<byte> inBuff, Span<byte> outBuff, out uint sendLength, byte[] serverUserName)
+        internal static unsafe uint SNISecGenClientContext(SNIHandle pConnectionObject, ReadOnlySpan<byte> inBuff, Span<byte> outBuff, out uint sendLength, string serverUserName)
         {
             sendLength = (uint)outBuff.Length;
 
-            fixed (byte* pin_serverUserName = &serverUserName[0])
-            fixed (byte* pInBuff = inBuff)
-            fixed (byte* pOutBuff = outBuff)
+            var serverNameLength = Encoding.Unicode.GetByteCount(serverUserName);
+            var serverNameArray = ArrayPool<byte>.Shared.Rent(serverNameLength);
+
+            try
             {
-                bool local_fDone;
-                return SNISecGenClientContextWrapper(
-                    pConnectionObject,
-                    pInBuff,
-                    (uint)inBuff.Length,
-                    pOutBuff,
-                    ref sendLength,
-                    out local_fDone,
-                    pin_serverUserName,
-                    (uint)serverUserName.Length,
-                    null,
-                    null);
+                Encoding.Unicode.GetBytes(serverUserName, 0, serverUserName.Length, serverNameArray, 0);
+
+                fixed (byte* pin_serverUserName = serverNameArray)
+                fixed (byte* pInBuff = inBuff)
+                fixed (byte* pOutBuff = outBuff)
+                {
+                    bool local_fDone;
+                    return SNISecGenClientContextWrapper(
+                        pConnectionObject,
+                        pInBuff,
+                        (uint)inBuff.Length,
+                        pOutBuff,
+                        ref sendLength,
+                        out local_fDone,
+                        pin_serverUserName,
+                        (uint)serverNameLength,
+                        null,
+                        null);
+                }
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(serverNameArray);
             }
         }
 

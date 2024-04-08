@@ -12,12 +12,33 @@ namespace Microsoft.Data.SqlClient
         private TdsParser _parser = null!;
         private ServerInfo _serverInfo = null!;
         private protected TdsParserStateObject _physicalStateObj = null!;
+        private SqlAuthenticationParameters? _parameters;
 
-        internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser)
+        internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser, string[] serverNames)
+        {
+            Debug.Assert(serverNames.Length > 0);
+
+            Initialize(serverInfo, physicalStateObj, parser, serverNames[0]);
+        }
+
+        internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser, string serverName)
         {
             _parser = parser;
             _physicalStateObj = physicalStateObj;
             _serverInfo = serverInfo;
+
+            var options = parser.Connection.ConnectionOptions;
+
+            _parameters = new SqlAuthenticationParameters.Builder(
+                           authenticationMethod: parser.Connection.ConnectionOptions.Authentication,
+                           resource: serverName,
+                           authority: null,
+                           serverName: options.DataSource,
+                           databaseName: options.InitialCatalog)
+                       .WithConnectionId(parser.Connection.ClientConnectionId)
+                       .WithConnectionTimeout(options.ConnectTimeout)
+                       .WithUserId(options.UserID)
+                       .WithPassword(options.Password);
 
             Initialize();
         }
@@ -26,16 +47,18 @@ namespace Microsoft.Data.SqlClient
         {
         }
 
-        protected abstract void GenerateSspiClientContext(ReadOnlyMemory<byte> incomingBlob, IBufferWriter<byte> outgoingBlobWriter, byte[][] _sniSpnBuffer);
+        /// <summary>
+        /// Gets the authentication parameters for the current connection.
+        /// </summary>
+        protected SqlAuthenticationParameters AuthenticationParameters => _parameters ?? throw new InvalidOperationException("SSPI context provider has not been initialized");
 
-        internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, IBufferWriter<byte> outgoingBlobWriter, byte[] sniSpnBuffer)
-            => SSPIData(receivedBuff, outgoingBlobWriter, new[] { sniSpnBuffer });
+        protected abstract void GenerateSspiClientContext(ReadOnlyMemory<byte> incomingBlob, IBufferWriter<byte> outgoingBlobWriter);
 
-        internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, IBufferWriter<byte> outgoingBlobWriter, byte[][] sniSpnBuffer)
+        internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, IBufferWriter<byte> outgoingBlobWriter)
         {
             try
             {
-                GenerateSspiClientContext(receivedBuff, outgoingBlobWriter, sniSpnBuffer);
+                GenerateSspiClientContext(receivedBuff, outgoingBlobWriter);
             }
             catch (Exception e)
             {
