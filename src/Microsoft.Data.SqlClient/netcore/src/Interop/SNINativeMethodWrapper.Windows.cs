@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.Data.Common;
@@ -472,8 +471,10 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        internal static unsafe uint SNISecGenClientContext(SNIHandle pConnectionObject, ReadOnlySpan<byte> inBuff, Span<byte> outBuff, ref uint sendLength, byte[] serverUserName)
+        internal static unsafe uint SNISecGenClientContext(SNIHandle pConnectionObject, ReadOnlySpan<byte> inBuff, Span<byte> outBuff, out uint sendLength, byte[] serverUserName)
         {
+            sendLength = (uint)outBuff.Length;
+
             fixed (byte* pin_serverUserName = &serverUserName[0])
             fixed (byte* pInBuff = inBuff)
             fixed (byte* pOutBuff = outBuff)
