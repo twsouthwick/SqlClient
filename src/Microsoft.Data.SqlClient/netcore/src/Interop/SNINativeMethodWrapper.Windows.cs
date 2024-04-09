@@ -440,6 +440,8 @@ namespace Microsoft.Data.SqlClient
                 if (spn != null)
                 {
                     var array = ArrayPool<byte>.Shared.Rent(SniMaxComposedSpnLength);
+                    array.AsSpan().Clear();
+
                     try
                     {
                         fixed (byte* pin_spnBuffer = &array[0])
@@ -448,7 +450,7 @@ namespace Microsoft.Data.SqlClient
                             clientConsumerInfo.cchSPN = (uint)SniMaxComposedSpnLength;
                             var result = SNIOpenSyncExWrapper(ref clientConsumerInfo, out pConn);
 
-                            spn = Encoding.Unicode.GetString(array, 0, (int)clientConsumerInfo.cchSPN).TrimEnd();
+                            spn = Marshal.PtrToStringUni(new(pin_spnBuffer));
 
                             return result;
                         }
