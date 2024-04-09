@@ -7,7 +7,8 @@ using Microsoft.Data.Common;
 
 namespace Microsoft.Data.SqlClient
 {
-    internal abstract class SSPIContextProvider
+    /// <include file='../../../../doc/snippets/Microsoft.Data.SqlClient/SSPIContextProvider.xml' path='docs/members[@name="SSPIContextProvider"]/SSPIContextProvider/*'/>
+    public abstract class SSPIContextProvider
     {
         private TdsParser _parser = null!;
         private ServerInfo _serverInfo = null!;
@@ -47,11 +48,10 @@ namespace Microsoft.Data.SqlClient
         {
         }
 
-        /// <summary>
-        /// Gets the authentication parameters for the current connection.
-        /// </summary>
+        /// <include file='../../../../doc/snippets/Microsoft.Data.SqlClient/SSPIContextProvider.xml' path='docs/members[@name="SSPIContextProvider"]/AuthenticationParameters/*'/>
         protected SqlAuthenticationParameters AuthenticationParameters => _parameters ?? throw new InvalidOperationException("SSPI context provider has not been initialized");
 
+        /// <include file='../../../../doc/snippets/Microsoft.Data.SqlClient/SSPIContextProvider.xml' path='docs/members[@name="SSPIContextProvider"]/GenerateSspiClientContext/*'/>
         protected abstract void GenerateSspiClientContext(ReadOnlyMemory<byte> incomingBlob, IBufferWriter<byte> outgoingBlobWriter);
 
         internal void SSPIData(ReadOnlyMemory<byte> receivedBuff, IBufferWriter<byte> outgoingBlobWriter)
@@ -66,7 +66,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        protected void SSPIError(string error, string procedure)
+        private protected void SSPIError(string error, string procedure)
         {
             Debug.Assert(!ADP.IsEmpty(procedure), "TdsParser.SSPIError called with an empty or null procedure string");
             Debug.Assert(!ADP.IsEmpty(error), "TdsParser.SSPIError called with an empty or null error string");

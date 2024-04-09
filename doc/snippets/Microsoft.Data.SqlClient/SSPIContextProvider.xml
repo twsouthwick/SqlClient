@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<docs>
+  <members name="SSPIContextProvider">
+    <SSPIContextProvider>
+      <summary>An extension point to provide a custom generator for SSPI contexts.</summary>
+    </SSPIContextProvider>
+    <AuthenticationParameters>
+      <summary>Gets the authentication parameters for the current connection.</summary>
+    </AuthenticationParameters>
+    <GenerateSspiClientContext>
+      <param name="incomingBlob">The incoming negotiate blob.</param>
+      <param name="outgoingBlobWriter">A <see cref="T:System.Buffers.IBufferWriter{T}" /> to write the outgoing blob.</param>
+    </GenerateSspiClientContext>
+  </members>
+</docs>

@@ -124,6 +124,19 @@ using (SqlConnection connection = new SqlConnection(connectionString))
             <remarks>To be added.</remarks>
             <exception cref="T:System.ArgumentException">The supplied arguments failed validation, including <see cref="T:Microsoft.Data.SqlClient.SqlConnection.ConnectionString" /> validation.</exception>
         </ctorConnectionStringCredential>
+      <SSPIContextProviderFactory>
+        <summary>Gets or sets the <see cref="T:Microsoft.Data.SqlClient.SSPIContextProvider" /> used for negotiate protocol.</summary>
+        <value>The factory used to generate a provider for SSPI contexts.</value>
+        <remarks>
+          <format type="text/markdown">
+            <![CDATA[
+## Remarks  
+ The SSPIContextProvider is a part of the connection pool key. Care should be taken when using this property to manage your own SSPI context. 
+  
+            ]]>
+          </format>
+        </remarks>
+      </SSPIContextProviderFactory>
         <AccessToken>
             <summary>Gets or sets the access token for the connection.</summary>
             <value>The access token for the connection.</value>
