@@ -17,6 +17,11 @@ namespace Microsoft.Data.SqlClient
 
         internal void Initialize(ServerInfo serverInfo, TdsParserStateObject physicalStateObj, TdsParser parser, params string[] serverNames)
         {
+            if (serverNames is null)
+            {
+                throw new ArgumentNullException(nameof(serverNames));
+            }
+
             Debug.Assert(serverNames.Length > 0);
 
             _parser = parser;
@@ -29,7 +34,7 @@ namespace Microsoft.Data.SqlClient
             Initialize();
         }
 
-        private SqlAuthenticationParameters InitializeAuthenticationParameters(SqlInternalConnectionTds connection, string serverName)
+        private static SqlAuthenticationParameters InitializeAuthenticationParameters(SqlInternalConnectionTds connection, string serverName)
         {
             var auth = new SqlAuthenticationParameters.Builder(
                 authenticationMethod: connection.ConnectionOptions.Authentication,

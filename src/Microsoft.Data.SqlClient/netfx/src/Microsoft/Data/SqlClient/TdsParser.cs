@@ -648,8 +648,6 @@ namespace Microsoft.Data.SqlClient
                 FQDNforDNSCache,
                 hostNameInCertificate);
 
-            _authenticationProvider?.Initialize(serverInfo, _physicalStateObj, this, _sniSpn);
-
             if (TdsEnums.SNI_SUCCESS != _physicalStateObj.Status)
             {
                 _physicalStateObj.AddError(ProcessSNIError(_physicalStateObj));
@@ -663,6 +661,8 @@ namespace Microsoft.Data.SqlClient
                 ThrowExceptionAndWarning(_physicalStateObj);
                 Debug.Fail("SNI returned status != success, but no error thrown?");
             }
+
+            _authenticationProvider?.Initialize(serverInfo, _physicalStateObj, this, _sniSpn);
 
             _server = serverInfo.ResolvedServerName;
 
