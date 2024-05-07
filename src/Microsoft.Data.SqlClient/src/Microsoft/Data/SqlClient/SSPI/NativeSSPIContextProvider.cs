@@ -49,7 +49,7 @@ namespace Microsoft.Data.SqlClient
             }
         }
 
-        protected override void GenerateSspiClientContext(ReadOnlyMemory<byte> incomingBlob, IBufferWriter<byte> outgoingBlobWriter)
+        protected override void GenerateSspiClientContext(ReadOnlySpan<byte> incomingBlob, IBufferWriter<byte> outgoingBlobWriter)
         {
 #if NETFRAMEWORK
             SNIHandle handle = _physicalStateObj.Handle;
@@ -60,7 +60,7 @@ namespace Microsoft.Data.SqlClient
 
             var outBuff = outgoingBlobWriter.GetSpan((int)s_maxSSPILength);
 
-            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, incomingBlob.Span, outBuff, out var sendLength, AuthenticationParameters.ServerName))
+            if (0 != SNINativeMethodWrapper.SNISecGenClientContext(handle, incomingBlob, outBuff, out var sendLength, AuthenticationParameters.ServerName))
             {
                 throw new InvalidOperationException(SQLMessage.SSPIGenerateError());
             }
